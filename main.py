@@ -1,13 +1,7 @@
-from build123d import (
-    BuildPart,
-    BuildSketch,
-    Compound,
-    Location,
-    Plane,
-    Rectangle,
-    extrude,
-    fillet,
-)
+from operator import add
+import build123d as bd
+import cadquery as cq
+
 from ocp_vscode import show
 
 BOX_HEIGHT = 50
@@ -18,22 +12,38 @@ RIGHT_ANGLE = 90
 
 EXTRUSION_2020_SIZE = 20
 
-def extrusion_2020(
-    length: float,
-):
-    with BuildPart() as part:
-        with BuildSketch(Plane.XY) as sq:
-            Rectangle(EXTRUSION_2020_SIZE, EXTRUSION_2020_SIZE)
-            fillet(sq.vertices(), radius=1.5)
-        extrude(amount=length)
-    if part.part is not None:
+
+def extrusion_2020(length: float) -> bd.Part:
+    prifiles = bd.import_step("vslot-2020_1.step")
+    faces = prifiles.faces()
+
+    planer_faces = [f for f in faces if f.is_planar]
+
+    profile_face = max(planer_faces, key=lambda f: f.area)
+
+    with bd.BuildPart() as part:
+        with bd.BuildSketch(bd.Plane.XY):
+            bd.add(profile_face)
+        bd.extrude(amount=length)
+
+    if part.part:
         return part.part
     raise ValueError("Part creation failed")
 
 
 if __name__ == "__main__":
-    left = extrusion_2020(BOX_HEIGHT - EXTRUSION_2020_SIZE)  # Vertical extrusion for left side
-    right = extrusion_2020(BOX_HEIGHT - EXTRUSION_2020_SIZE)  # Vertical extrusion for right side
+    slot = cq.importers.importDXF("vslot-2020_1.dxf").wires()
+
+    solid = slot.toPending().extrude(1)
+
+    cq.exporters.export(solid, "vslot-2020_1.step")
+
+    left = extrusion_2020(
+        BOX_HEIGHT - EXTRUSION_2020_SIZE
+    )  # Vertical extrusion for left side
+    right = extrusion_2020(
+        BOX_HEIGHT - EXTRUSION_2020_SIZE
+    )  # Vertical extrusion for right side
 
     top = extrusion_2020(BOX_WIDTH)  # Horizontal extrusion for top
     bottom = extrusion_2020(BOX_WIDTH)  # Horizontal extrusion for bottom
@@ -43,18 +53,19 @@ if __name__ == "__main__":
     left.label = "left"
     right.label = "right"
 
-    left.location = Location((EXTRUSION_2020_SIZE/2, 0, 0), (0, 0, 0))
+    left.location = bd.Location((EXTRUSION_2020_SIZE / 2, 0, 0), (0, 0, 0))
 
-    right.location = Location((BOX_WIDTH - EXTRUSION_2020_SIZE/2, 0, 0), (0, 0, 0))
+    right.location = bd.Location((BOX_WIDTH - EXTRUSION_2020_SIZE / 2, 0, 0), (0, 0, 0))
 
-    top.location = Location((0, 0, BOX_HEIGHT - EXTRUSION_2020_SIZE/2), (0, RIGHT_ANGLE, 0))
+    top.location = bd.Location(
+        (0, 0, BOX_HEIGHT - EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0)
+    )
 
-    bottom.location = Location((0, 0, -EXTRUSION_2020_SIZE/2), (0, RIGHT_ANGLE, 0))
+    bottom.location = bd.Location((0, 0, -EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0))
 
-    frame = Compound(
+    frame = bd.Compound(
         label="frame",
         children=[top, bottom, left, right],
     )
-    print(frame.show_topology())
-    show(frame)
 
+    show(frame)
