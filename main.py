@@ -2,7 +2,6 @@ import copy
 from dataclasses import dataclass, field
 
 import build123d as bd
-import cadquery as cq
 from ocp_vscode import show
 
 # =============================================================================
@@ -152,12 +151,12 @@ EXTRUSION_2020_SIZE = 20
 
 
 def extrusion_2020(length: float) -> bd.Part:
-    prifiles = bd.import_step("vslot-2020_1.step")
+    prifiles = bd.import_step("2020_t_slot.step")
     faces = prifiles.faces()
 
-    planer_faces = [f for f in faces if f.is_planar]
+    planer_faces = [f for f in faces if f.is_planar and f.length == f.width]
 
-    profile_face = max(planer_faces, key=lambda f: f.area)
+    profile_face = min(planer_faces, key=lambda f: f.area)
 
     with bd.BuildPart() as part:
         with bd.BuildSketch(bd.Plane.XY):
@@ -188,15 +187,15 @@ def create_frame(config: FrameConfig) -> bd.Compound:
     top1.label = "front_top"
     bottom1.label = "front_bottom"
 
-    left1.location = bd.Location((EXTRUSION_2020_SIZE / 2, 0, 0), (0, 0, 0))
+    left1.location = bd.Location((0, 0, 0), (0, 0, 0))
     right1.location = bd.Location(
-        (config.width - EXTRUSION_2020_SIZE / 2, 0, 0), (0, 0, 0)
+        (config.width - EXTRUSION_2020_SIZE, 0, 0), (0, 0, 0)
     )
     top1.location = bd.Location(
-        (0, 0, config.height - EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0)
+        (0, 0, config.height), (0, RIGHT_ANGLE, 0)
     )
     bottom1.location = bd.Location(
-        (0, 0, -EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0)
+        (0, 0, 0), (0, RIGHT_ANGLE, 0)
     )
 
     frame1 = bd.Compound(
@@ -215,15 +214,15 @@ def create_frame(config: FrameConfig) -> bd.Compound:
     top2.label = "back_top"
     bottom2.label = "back_bottom"
 
-    left2.location = bd.Location((EXTRUSION_2020_SIZE / 2, config.depth, 0), (0, 0, 0))
+    left2.location = bd.Location((0, config.depth, 0), (0, 0, 0))
     right2.location = bd.Location(
-        (config.width - EXTRUSION_2020_SIZE / 2, config.depth, 0), (0, 0, 0)
+        (config.width - EXTRUSION_2020_SIZE, config.depth, 0), (0, 0, 0)
     )
     top2.location = bd.Location(
-        (0, config.depth, config.height - EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0)
+        (0, config.depth, config.height), (0, RIGHT_ANGLE, 0)
     )
     bottom2.location = bd.Location(
-        (0, config.depth, -EXTRUSION_2020_SIZE / 2), (0, RIGHT_ANGLE, 0)
+        (0, config.depth, 0), (0, RIGHT_ANGLE, 0)
     )
 
     frame2 = bd.Compound(
@@ -238,9 +237,9 @@ def create_frame(config: FrameConfig) -> bd.Compound:
         bridge.label = f"bottom_bridge_{i + 1}"
         bridge.location = bd.Location(
             (
-                EXTRUSION_2020_SIZE / 2 + x_pos,
-                config.depth - EXTRUSION_2020_SIZE / 2,
-                -EXTRUSION_2020_SIZE / 2,
+                x_pos,
+                config.depth,
+                - EXTRUSION_2020_SIZE,
             ),
             (RIGHT_ANGLE, 0, 0),
         )
@@ -252,9 +251,9 @@ def create_frame(config: FrameConfig) -> bd.Compound:
         bridge.label = f"top_bridge_{i + 1}"
         bridge.location = bd.Location(
             (
-                EXTRUSION_2020_SIZE / 2 + x_pos,
-                config.depth - EXTRUSION_2020_SIZE / 2,
-                config.height - EXTRUSION_2020_SIZE / 2,
+                x_pos,
+                config.depth,
+                config.height - EXTRUSION_2020_SIZE,
             ),
             (RIGHT_ANGLE, 0, 0),
         )
@@ -266,10 +265,6 @@ def create_frame(config: FrameConfig) -> bd.Compound:
 
 
 if __name__ == "__main__":
-    slot = cq.importers.importDXF("vslot-2020_1.dxf").wires()
-    solid = slot.toPending().extrude(1)
-    cq.exporters.export(solid, "vslot-2020_1.step")
-
     # ==========================================================================
     # CONFIGURE YOUR FRAME HERE
     # ==========================================================================
