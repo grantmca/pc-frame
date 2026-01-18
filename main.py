@@ -123,12 +123,8 @@ class FrameConfig:
             f"  Bridge pieces:     {lengths['bridge']['count']} x "
             f"{lengths['bridge']['length']:.0f}mm = {lengths['bridge']['total']:.0f}mm"
         )
-        print(
-            f"    - Bottom bridges: {lengths['bridge']['bottom_count']}"
-        )
-        print(
-            f"    - Top bridges:    {lengths['bridge']['top_count']}"
-        )
+        print(f"    - Bottom bridges: {lengths['bridge']['bottom_count']}")
+        print(f"    - Top bridges:    {lengths['bridge']['top_count']}")
         print("-" * 40)
         print(
             f"\nTOTAL 2020 EXTRUSION NEEDED: "
@@ -163,20 +159,19 @@ def extrusion_2020(length: float) -> bd.Part:
             bd.add(profile_face)
         bd.extrude(amount=length)
 
-    if part.part:
-        return part.part
-    raise ValueError("Part creation failed")
+    if not part.part:
+        raise ValueError("Part creation failed")
+
+    return part.part
 
 
 def create_frame(config: FrameConfig) -> bd.Compound:
     """Create a PC frame based on the provided configuration."""
 
-    # Create base extrusions (one of each size)
     vertical_extrusion = extrusion_2020(config.height - EXTRUSION_2020_SIZE)
     horizontal_extrusion = extrusion_2020(config.width)
     bridge_extrusion = extrusion_2020(config.depth - EXTRUSION_2020_SIZE)
 
-    # Frame 1 (front face at Y=0) - use shallow copies
     left1 = copy.copy(vertical_extrusion)
     right1 = copy.copy(vertical_extrusion)
     top1 = copy.copy(horizontal_extrusion)
@@ -188,47 +183,45 @@ def create_frame(config: FrameConfig) -> bd.Compound:
     bottom1.label = "front_bottom"
 
     left1.location = bd.Location((0, 0, 0), (0, 0, 0))
-    right1.location = bd.Location(
-        (config.width - EXTRUSION_2020_SIZE, 0, 0), (0, 0, 0)
-    )
-    top1.location = bd.Location(
-        (0, 0, config.height), (0, RIGHT_ANGLE, 0)
-    )
-    bottom1.location = bd.Location(
-        (0, 0, 0), (0, RIGHT_ANGLE, 0)
-    )
+    right1.location = bd.Location((config.width - EXTRUSION_2020_SIZE, 0, 0), (0, 0, 0))
+    top1.location = bd.Location((0, 0, config.height), (0, RIGHT_ANGLE, 0))
+    bottom1.location = bd.Location((0, 0, 0), (0, RIGHT_ANGLE, 0))
 
     frame1 = bd.Compound(
         label="front_frame",
         children=[top1, bottom1, left1, right1],
     )
 
-    # Frame 2 (back face at Y=depth) - use shallow copies
-    left2 = copy.copy(vertical_extrusion)
-    right2 = copy.copy(vertical_extrusion)
-    top2 = copy.copy(horizontal_extrusion)
-    bottom2 = copy.copy(horizontal_extrusion)
+    # Frame 2 (back face at Y=depth) - deep copy frame1 and adjust
+    frame2 = copy.deepcopy(frame1)
+    frame2.label = "back_frame"
 
-    left2.label = "back_left"
-    right2.label = "back_right"
-    top2.label = "back_top"
-    bottom2.label = "back_bottom"
+    # Update labels and locations for back frame children
+    for child in frame2.children:
+        # Update labels: "front_*" -> "back_*"
+        if child.label.startswith("front_"):
+            child.label = child.label.replace("front_", "back_")
 
-    left2.location = bd.Location((0, config.depth, 0), (0, 0, 0))
-    right2.location = bd.Location(
-        (config.width - EXTRUSION_2020_SIZE, config.depth, 0), (0, 0, 0)
-    )
-    top2.location = bd.Location(
-        (0, config.depth, config.height), (0, RIGHT_ANGLE, 0)
-    )
-    bottom2.location = bd.Location(
-        (0, config.depth, 0), (0, RIGHT_ANGLE, 0)
-    )
+        # Update locations: add config.depth to Y coordinate
+        if child.location:
+            current_pos = child.location.position
+            current_rot = child.location.orientation
 
-    frame2 = bd.Compound(
-        label="back_frame",
-        children=[top2, bottom2, left2, right2],
-    )
+            # Convert position to tuple if needed (handles Vector or tuple)
+            pos_tuple = (
+                tuple(current_pos)
+                if hasattr(current_pos, "__iter__")
+                else (current_pos.x, current_pos.y, current_pos.z)
+            )
+            rot_tuple = (
+                tuple(current_rot)
+                if hasattr(current_rot, "__iter__")
+                else (current_rot.x, current_rot.y, current_rot.z)
+            )
+
+            # Create new position with Y offset
+            new_pos = (pos_tuple[0], pos_tuple[1] + config.depth, pos_tuple[2])
+            child.location = bd.Location(new_pos, rot_tuple)
 
     # Create bottom bridges
     bottom_bridges = []
@@ -239,7 +232,7 @@ def create_frame(config: FrameConfig) -> bd.Compound:
             (
                 x_pos,
                 config.depth,
-                - EXTRUSION_2020_SIZE,
+                -EXTRUSION_2020_SIZE,
             ),
             (RIGHT_ANGLE, 0, 0),
         )
