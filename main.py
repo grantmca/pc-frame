@@ -275,15 +275,15 @@ if __name__ == "__main__":
     # ==========================================================================
     config = FrameConfig(
         # Box dimensions
-        width=600,  # mm
-        height=200,  # mm
-        depth=300,  # mm
+        width=500,  # mm
+        height=270,  # mm
+        depth=353.3,  # mm
         # Bottom bridge X positions (distance from left edge)
         # Example: [50, 200] places bridges at 50mm and 200mm from left
-        bottom_bridge_positions=[50, 350],
+        bottom_bridge_positions=[100, 200, 300, 400],
         # Top bridge X positions (distance from left edge)
         # Example: [100, 300] places bridges at 100mm and 300mm from left
-        top_bridge_positions=[100, 200, 300, 400],
+        top_bridge_positions=[50, 350],
     )
     # ==========================================================================
 
